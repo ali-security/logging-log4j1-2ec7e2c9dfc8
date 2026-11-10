@@ -1,0 +1,76 @@
+# Build and test log4j 1.2.x the way the project builds itself: Maven drives the
+# compile/package, and its antrun "runAll" execution runs the tests/build.xml
+# JUnit regression suite during the test phase. Upstream ships no GitHub Actions CI.
+name: seal-build
+
+on:
+  workflow_dispatch:
+    inputs:
+      test-filter:
+        description: "tests/build.xml target to run instead of runAll (e.g. SocketServer); empty = full suite"
+        required: false
+        default: ""
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      # pom.xml compiles with -source/-target 1.4; JDK 7 is the newest JDK whose
+      # javac/javadoc still accept that and Maven 3.8.x is the newest Maven that runs on it.
+      - name: Set up JDK 7
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: "7"
+          architecture: x64
+
+      - name: Install Maven 3.8.8
+        run: |
+          curl -fsSL https://archive.apache.org/dist/maven/maven-3/3.8.8/binaries/apache-maven-3.8.8-bin.tar.gz | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/apache-maven-3.8.8/bin" >> "$GITHUB_PATH"
+
+      - name: Versions
+        run: |
+          java -version
+          mvn -v
+
+      - name: Build and test
+        run: |
+          set -o pipefail
+          TARGET_ARG=""
+          if [ -n "${{ inputs.test-filter }}" ]; then
+            TARGET_ARG="-Dlog4j.tests.target=${{ inputs.test-filter }}"
+          fi
+          mvn -B -V -Dmaven.site.skip=true -Dhttps.protocols=TLSv1.2 $TARGET_ARG clean verify 2>&1 | tee "$RUNNER_TEMP/build.log"
+
+      - name: Test summary
+        if: always()
+        run: |
+          python3 - "$RUNNER_TEMP/build.log" <<'EOF'
+          import re, sys
+          # Ant prints each suite's "Tests run:" line twice (printsummary + plain
+          # formatter); count only the one that follows the "Testsuite:" header.
+          run = fail = err = suites = 0
+          after_header = False
+          for line in open(sys.argv[1], errors="replace"):
+              if "[junit] Testsuite: " in line:
+                  after_header = True
+                  continue
+              m = re.search(r"\[junit\] Tests run: (\d+), Failures: (\d+), Errors: (\d+)", line)
+              if m and after_header:
+                  suites += 1
+                  run += int(m.group(1)); fail += int(m.group(2)); err += int(m.group(3))
+              after_header = False
+          print(f"JUnit summary: {suites} test suites, {run} tests run, "
+                f"{fail} failures, {err} errors, {run - fail - err} passed")
+          EOF
+
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: log4j-jar
+          path: target/log4j-1.2.17.jar
+          if-no-files-found: error
