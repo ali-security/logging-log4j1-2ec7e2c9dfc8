@@ -143,8 +143,10 @@
            target="${javac.target}"
            source="${javac.source}"
            debug="on"
-           excludes="${excludes}">        
+           excludes="${excludes}">
       <classpath refid="tests.classpath"/>
+      <!--  NTEventLogAppender was removed (DLL preloading)  -->
+      <exclude name="org/apache/log4j/nt/**"/>
     </javac>
   </target>
 
@@ -175,7 +177,7 @@
                                      CyclicBuffer, OR,
                                      LevelMatchFilter, PatternParser, 
                                      ErrorHandler,Rewrite, JNDIUtil, JMSSink,
-                                     HardenedObjectInputStream"/>
+                                     HardenedObjectInputStream, NativeLibraryPreload"/>
 
   <!-- ================================================================= -->
   <!-- Longer unit tests                                                 -->
@@ -479,15 +481,17 @@
       </junit>
   </target>
 
-  <target name="NTEventLogAppender" depends="build" if="is-windows">
-    <junit printsummary="yes" 
-        fork="yes" 
-        haltonfailure="${haltonfailure}"
-        dir="${project.lib.home}">
-      <classpath refid="tests.classpath"/>
-      <formatter type="plain" usefile="false"/>
-      <test name="org.apache.log4j.nt.NTEventLogAppenderTest" />
-    </junit>
+  <target name="NativeLibraryPreload" depends="build">
+      <property name="preload.dir" location="${basedir}/output/nativelib"/>
+      <mkdir dir="${preload.dir}"/>
+      <junit printsummary="yes" fork="yes"
+        haltonfailure="${haltonfailure}" dir="${basedir}">
+        <classpath refid="tests.classpath"/>
+        <formatter type="plain" usefile="false"/>
+        <sysproperty key="java.library.path" value="${preload.dir}"/>
+        <sysproperty key="log4j.test.preload.dir" value="${preload.dir}"/>
+        <test name="org.apache.log4j.NativeLibraryPreloadTest" />
+      </junit>
   </target>
 
   <target name="HardenedObjectInputStream" depends="build">
