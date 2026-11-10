@@ -36,6 +36,7 @@
   <property name="checkstyle.jar" location="${m2_repo}/checkstyle/checkstyle/${checkstyle.version}/checkstyle-${checkstyle.version}.jar"/>
   <property name="javamail.jar" location="${m2_repo}/javax/mail/mail/1.4.3/mail-1.4.3.jar"/>
   <property name="activation.jar" location="${m2_repo}/javax/activation/activation/1.1/activation-1.1.jar"/>
+  <property name="javaee-api.jar" location="${m2_repo}/org/apache/openejb/javaee-api/5.0-2/javaee-api-5.0-2.jar"/>
   <property name="junit.version" value="3.8.1"/>
   <property name="junit.jar" location="${m2_repo}/junit/junit/${junit.version}/junit-${junit.version}.jar"/>
 
@@ -71,6 +72,7 @@
     <pathelement location="${junit.jar}"/>
     <pathelement location="${javamail.jar}"/>
     <pathelement location="${activation.jar}"/>
+    <pathelement location="${javaee-api.jar}"/>
     <pathelement path="${java.class.path}"/>
   </path>
 
@@ -172,7 +174,7 @@
                                      OptionConverter, BoundedFIFO,
                                      CyclicBuffer, OR,
                                      LevelMatchFilter, PatternParser, 
-                                     ErrorHandler,Rewrite, JNDIUtil"/>
+                                     ErrorHandler,Rewrite, JNDIUtil, JMSSink"/>
 
   <!-- ================================================================= -->
   <!-- Longer unit tests                                                 -->
@@ -353,6 +355,15 @@
       <classpath refid="tests.classpath"/>
       <formatter type="plain" usefile="false" />
       <test name="org.apache.log4j.net.JNDIUtilTest" />
+    </junit>
+  </target>
+
+  <target name="JMSSink" depends="build">
+    <junit printsummary="yes" fork="yes"
+        haltonfailure="${haltonfailure}" dir="${basedir}">
+      <classpath refid="tests.classpath"/>
+      <formatter type="plain" usefile="false" />
+      <test name="org.apache.log4j.net.JMSSinkTest" />
     </junit>
   </target>
 
